@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vazifa Boshqaruvi va Mijoz Kartasi</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Namuna foydalanuvchilar
+    const users = [
+      { id: 1, username: "direktor", password: "dir123", role: "Direktor" },
+      { id: 2, username: "hr", password: "hr123", role: "HR" },
+      { id: 3, username: "pm", password: "pm123", role: "PM" },
+      { id: 4, username: "mobilograf", password: "mob123", role: "Mobilograf" },
+      { id: 5, username: "brendface", password: "brd123", role: "Brend Face" },
+    ];
+
+    // localStorage’dan ma’lumot olish
+    const getStoredTasks = () => JSON.parse(localStorage.getItem("tasks")) || [];
+    const getStoredClients = () => JSON.parse(localStorage.getItem("clients")) || [];
+
+    // Telegram sozlash
+    const initTelegram = () => {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      }
+    };
+
+    // Kirish komponenti
+    function Login({ onLogin }) {
+      const [username, setUsername] = useState("");
+      const [password, setPassword] = useState("");
+      const [error, setError] = useState("");
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const user = users.find((u) => u.username === username && u.password === password);
+        if (user) {
+          localStorage.setItem("user", JSON.stringify(user));
+          onLogin(user);
+        } else {
+          setError("Noto‘g‘ri login yoki parol");
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <h2 className="text-xl font-bold mb-4 text-center">Kirish</h2>
+            <form onSubmit={handleLogin}>
+              <div className="mb-3">
+                <label className="block text-gray-700 text-sm">Login</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full p-2 border rounded text-sm"
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block text-gray-700 text-sm">Parol</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2 border rounded text-sm"
+                  required
+                />
+              </div>
+              {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+              <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 text-sm">
+                Kirish
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // Navigatsiya komponenti
+    function Navigation({ role, onLogout }) {
+      const navItems = {
+        Direktor: ["Dashboard", "Vazifalar", "Mijozlar"],
+        HR: ["Dashboard", "Vazifalar", "Mijozlar"],
+        PM: ["Dashboard", "Vazifalar", "Mijozlar"],
+        Mobilograf: ["Mening Vazifalarim", "Mijozlar"],
+        "Brend Face": ["Brend Vazifalarim", "Mijozlar"],
+      };
+
+      return (
+        <nav className="bg-blue-600 text-white p-3 sticky top-0">
+          <div className="flex justify-between items-center max-w-4xl mx-auto">
+            <h1 className="text-base font-bold">Vazifa Boshqaruvi</h1>
+            <div className="flex items-center">
+              {navItems[role].map((item) => (
+                <a key={item} href="#" className="mr-3 text-sm hover:underline">
+                  {item}
+                </a>
+              ))}
+              <button onClick={onLogout} className="bg-red-500 px-2 py-1 rounded hover:bg-red-600 text-sm">
+                Chiqish
+              </button>
+            </div>
+          </div>
+        </nav>
+      );
+    }
+
+    // Vazifa yaratish formasi
+    function TaskForm({ onAddTask }) {
+      const [title, setTitle] = useState("");
+      const [type, setType] = useState("Kunlik");
+      const [dueDate, setDueDate] = useState("");
+      const [assignedTo, setAssignedTo] = useState("");
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (title && dueDate && assignedTo) {
+          onAddTask({ id: Date.now(), title, type, status: "Yangi", assignedTo, dueDate });
+          setTitle("");
+          setType("Kunlik");
+          setDueDate("");
+          setAssignedTo("");
+        }
+      };
+
+      return (
+        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
+          <h3 className="text-base font-semibold mb-2">Yangi Vazifa</h3>
+          <div className="mb-2">
+            <label className="block text-sm">Nomi</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Turi</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+            >
+              <option value="Kunlik">Kunlik</option>
+              <option value="Haftalik">Haftalik</option>
+              <option value="15 kunlik">15 kunlik</option>
+            </select>
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Muddat</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Tayinlash</label>
+            <select
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+              required
+            >
+              <option value="">Tanlang</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.username}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 text-sm">
+            Qo‘shish
+          </button>
+        </form>
+      );
+    }
+
+    // Mijoz kartasi formasi
+    function ClientForm({ onAddClient }) {
+      const [brandName, setBrandName] = useState("");
+      const [fullName, setFullName] = useState("");
+      const [phone, setPhone] = useState("");
+      const [adType, setAdType] = useState("Social Media");
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (brandName && fullName && phone) {
+          onAddClient({ id: Date.now(), brandName, fullName, phone, adType, status: "Yangi" });
+          setBrandName("");
+          setFullName("");
+          setPhone("");
+          setAdType("Social Media");
+        }
+      };
+
+      return (
+        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
+          <h3 className="text-base font-semibold mb-2">Yangi Mijoz</h3>
+          <div className="mb-2">
+            <label className="block text-sm">Brend Nomi</label>
+            <input
+              type="text"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">To‘liq Ism</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Telefon</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+              required
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Reklama Turi</label>
+            <select
+              value={adType}
+              onChange={(e) => setAdType(e.target.value)}
+              className="w-full p-2 border rounded text-sm"
+            >
+              <option value="Social Media">Social Media</option>
+              <option value="TV">TV</option>
+              <option value="Radio">Radio</option>
+              <option value="Print">Print</option>
+            </select>
+          </div>
+          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 text-sm">
+            Qo‘shish
+          </button>
+        </form>
+      );
+    }
+
+    // Dashboard komponenti
+    function Dashboard({ user }) {
+      const [tasks, setTasks] = useState(getStoredTasks());
+      const [clients, setClients] = useState(getStoredClients());
+
+      useEffect(() => {
+        initTelegram();
+        // Vazifalarni saqlash
+        localStorage.setItem("tasks", JSON.stringify(tasks));
+        // Mijozlarni saqlash
+        localStorage.setItem("clients", JSON.stringify(clients));
+        // Chart.js sozlash
+        const ctx = document.getElementById("taskChart")?.getContext("2d");
+        if (ctx) {
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: ["Kunlik", "Haftalik", "15 kunlik"],
+              datasets: [
+                {
+                  label: "Vazifalar",
+                  data: [
+                    tasks.filter((t) => t.type === "Kunlik").length,
+                    tasks.filter((t) => t.type === "Haftalik").length,
+                    tasks.filter((t) => t.type === "15 kunlik").length,
+                  ],
+                  backgroundColor: ["#3b82f6", "#10b981", "#ef4444"],
+                },
+              ],
+            },
+            options: { scales: { y: { beginAtZero: true } } },
+          });
+        }
+      }, [tasks, clients]);
+
+      const canCreateTask = ["Direktor", "PM"].includes(user.role);
+      const canViewAllTasks = ["Direktor", "PM", "HR"].includes(user.role);
+      const filteredTasks = canViewAllTasks
+        ? tasks
+        : tasks.filter((task) => task.assignedTo === user.username);
+
+      const addTask = (newTask) => {
+        setTasks([...tasks, newTask]);
+      };
+
+      const deleteTask = (id) => {
+        setTasks(tasks.filter((task) => task.id !== id));
+      };
+
+      const updateTaskStatus = (id, status) => {
+        setTasks(tasks.map((task) => (task.id === id ? { ...task, status } : task)));
+      };
+
+      const addClient = (newClient) => {
+        setClients([...clients, newClient]);
+      };
+
+      const deleteClient = (id) => {
+        setClients(clients.filter((client) => client.id !== id));
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-100">
+          <Navigation role={user.role} onLogout={() => localStorage.removeItem("user")} />
+          <div className="max-w-4xl mx-auto p-4">
+            <h2 className="text-xl font-bold mb-4">Dashboard</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white p-4 rounded-lg shadow">
+                <h3 className="text-base font-semibold mb-2">Vazifalar Statistikasi</h3>
+                <canvas id="taskChart"></canvas>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow">
+                <h3 className="text-base font-semibold mb-2">Tezkor Harakatlar</h3>
+                {canCreateTask && (
+                  <TaskForm onAddTask={addTask} />
+                )}
+                <ClientForm onAddClient={addClient} />
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow mb-4">
+              <h3 className="text-base font-semibold mb-2">Vazifalar</h3>
+              {filteredTasks.length === 0 ? (
+                <p className="text-sm">Vazifalar yo‘q</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="p-2 text-left">Nomi</th>
+                      <th className="p-2 text-left">Turi</th>
+                      <th className="p-2 text-left">Holati</th>
+                      <th className="p-2 text-left">Muddat</th>
+                      <th className="p-2 text-left">Harakat</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTasks.map((task) => (
+                      <tr key={task.id} className="border-b">
+                        <td className="p-2">{task.title}</td>
+                        <td className="p-2">{task.type}</td>
+                        <td className="p-2">
+                          <select
+                            value={task.status}
+                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                            className="p-1 border rounded text-sm"
+                          >
+                            <option value="Yangi">Yangi</option>
+                            <option value="Jarayonda">Jarayonda</option>
+                            <option value="Bajarildi">Bajarildi</option>
+                          </select>
+                        </td>
+                        <td className="p-2">{task.dueDate}</td>
+                        <td className="p-2">
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 text-xs"
+                          >
+                            O‘chirish
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-base font-semibold mb-2">Mijozlar</h3>
+              {clients.length === 0 ? (
+                <p className="text-sm">Mijozlar yo‘q</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="p-2 text-left">Brend</th>
+                      <th className="p-2 text-left">Ism</th>
+                      <th className="p-2 text-left">Telefon</th>
+                      <th className="p-2 text-left">Reklama</th>
+                      <th className="p-2 text-left">Harakat</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clients.map((client) => (
+                      <tr key={client.id} className="border-b">
+                        <td className="p-2">{client.brandName}</td>
+                        <td className="p-2">{client.fullName}</td>
+                        <td className="p-2">{client.phone}</td>
+                        <td className="p-2">{client.adType}</td>
+                        <td className="p-2">
+                          <button
+                            onClick={() => deleteClient(client.id)}
+                            className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 text-xs"
+                          >
+                            O‘chirish
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Asosiy App komponenti
+    function App() {
+      const [user, setUser] = useState(null);
+
+      useEffect(() => {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      }, []);
+
+      const handleLogin = (user) => {
+        setUser(user);
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem("user");
+        setUser(null);
+      };
+
+      return (
+        <div>
+          {!user ? (
+            <Login onLogin={handleLogin} />
+          ) : (
+            <Dashboard user={user} />
+          )}
+        </div>
+      );
+    }
+
+    // App ni render qilish
+    ReactDOM.render(<App />, document.getElementById("root"));
+  </script>
+</body>
+</html>
