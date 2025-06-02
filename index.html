@@ -10,19 +10,43 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    .telegram-blue {
+      background-color: #0088cc;
+    }
+    .telegram-blue:hover {
+      background-color: #0077b3;
+    }
+    .status-yangi {
+      background-color: #ffcc00;
+      color: #fff;
+    }
+    .status-jarayonda {
+      background-color: #00cc99;
+      color: #fff;
+    }
+    .status-bajarildi {
+      background-color: #00cc00;
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // Namuna foydalanuvchilar
+    // Namuna foydalanuvchilar (Ssenarist qo‘shildi)
     const users = [
       { id: 1, username: "direktor", password: "dir123", role: "Direktor" },
       { id: 2, username: "hr", password: "hr123", role: "HR" },
       { id: 3, username: "pm", password: "pm123", role: "PM" },
       { id: 4, username: "mobilograf", password: "mob123", role: "Mobilograf" },
       { id: 5, username: "brendface", password: "brd123", role: "Brend Face" },
+      { id: 6, username: "ssenarist", password: "ssen123", role: "Ssenarist" },
     ];
 
     // localStorage’dan ma’lumot olish
@@ -57,7 +81,7 @@
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
-            <h2 className="text-xl font-bold mb-4 text-center">Kirish</h2>
+            <h2 className="text-xl font-bold mb-4 text-center text-gray-800">Kirish</h2>
             <form onSubmit={handleLogin}>
               <div className="mb-3">
                 <label className="block text-gray-700 text-sm">Login</label>
@@ -65,7 +89,7 @@
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full p-2 border rounded text-sm"
+                  className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -75,12 +99,12 @@
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-2 border rounded text-sm"
+                  className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
               {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-              <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 text-sm">
+              <button type="submit" className="w-full telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200">
                 Kirish
               </button>
             </form>
@@ -89,50 +113,50 @@
       );
     }
 
-    // Navigatsiya komponenti
-    function Navigation({ role, onLogout }) {
+    // Navigatsiya komponenti (pastki qism)
+    function Navigation({ role }) {
       const navItems = {
-        Direktor: ["Dashboard", "Vazifalar", "Mijozlar"],
-        HR: ["Dashboard", "Vazifalar", "Mijozlar"],
+        Direktor: ["Dashboard", "Vazifalar", "Mijozlar", "Foydalanuvchilar", "Hisobotlar", "Sozlamalar"],
+        HR: ["Dashboard", "Xodimlar", "Vazifalar", "Mijozlar", "Hisobotlar"],
         PM: ["Dashboard", "Vazifalar", "Mijozlar"],
         Mobilograf: ["Mening Vazifalarim", "Mijozlar"],
         "Brend Face": ["Brend Vazifalarim", "Mijozlar"],
+        Ssenarist: ["Mening Vazifalarim", "Mijozlar"],
       };
 
       return (
-        <nav className="bg-blue-600 text-white p-3 sticky top-0">
-          <div className="flex justify-between items-center max-w-4xl mx-auto">
-            <h1 className="text-base font-bold">Vazifa Boshqaruvi</h1>
-            <div className="flex items-center">
-              {navItems[role].map((item) => (
-                <a key={item} href="#" className="mr-3 text-sm hover:underline">
-                  {item}
-                </a>
-              ))}
-              <button onClick={onLogout} className="bg-red-500 px-2 py-1 rounded hover:bg-red-600 text-sm">
-                Chiqish
-              </button>
-            </div>
-          </div>
+        <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-2 flex justify-around items-center">
+          {navItems[role].map((item) => (
+            <a key={item} href="#" className="text-gray-600 hover:text-blue-500 text-sm flex flex-col items-center">
+              <span className="material-icons">{item === "Dashboard" ? "🏠" : item === "Vazifalar" || item.includes("Vazifalar") ? "📋" : item === "Mijozlar" ? "👤" : "⚙️"}</span>
+              <span>{item}</span>
+            </a>
+          ))}
         </nav>
       );
     }
 
     // Vazifa yaratish formasi
-    function TaskForm({ onAddTask }) {
+    function TaskForm({ onAddTask, users }) {
       const [title, setTitle] = useState("");
+      const [description, setDescription] = useState("");
       const [type, setType] = useState("Kunlik");
       const [dueDate, setDueDate] = useState("");
       const [assignedTo, setAssignedTo] = useState("");
+      const [clientId, setClientId] = useState("");
+
+      const clients = getStoredClients();
 
       const handleSubmit = (e) => {
         e.preventDefault();
         if (title && dueDate && assignedTo) {
-          onAddTask({ id: Date.now(), title, type, status: "Yangi", assignedTo, dueDate });
+          onAddTask({ id: Date.now(), title, description, type, status: "Yangi", assignedTo, dueDate, clientId });
           setTitle("");
+          setDescription("");
           setType("Kunlik");
           setDueDate("");
           setAssignedTo("");
+          setClientId("");
         }
       };
 
@@ -140,46 +164,53 @@
         <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
           <h3 className="text-base font-semibold mb-2">Yangi Vazifa</h3>
           <div className="mb-2">
-            <label className="block text-sm">Nomi</label>
+            <label className="block text-sm">Vazifa Nomi *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
           <div className="mb-2">
-            <label className="block text-sm">Turi</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
-            >
-              <option value="Kunlik">Kunlik</option>
-              <option value="Haftalik">Haftalik</option>
-              <option value="15 kunlik">15 kunlik</option>
-            </select>
-          </div>
-          <div className="mb-2">
-            <label className="block text-sm">Muddat</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
-              required
+            <label className="block text-sm">Tavsif</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div className="mb-2">
-            <label className="block text-sm">Tayinlash</label>
+            <label className="block text-sm">Muddat va Turi *</label>
+            <div className="flex space-x-2">
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-1/2 p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-1/2 p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Kunlik">Kunlik</option>
+                <option value="Haftalik">Haftalik</option>
+                <option value="15 kunlik">15 kunlik</option>
+              </select>
+            </div>
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Tayinlash *</label>
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             >
-              <option value="">Tanlang</option>
+              <option value="">Xodim tanlang</option>
               {users.map((user) => (
                 <option key={user.id} value={user.username}>
                   {user.username}
@@ -187,61 +218,85 @@
               ))}
             </select>
           </div>
-          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 text-sm">
-            Qo‘shish
+          <div className="mb-2">
+            <label className="block text-sm">Mijoz Kartasi</label>
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tanlang yoki yangi yaratish</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.brandName} - {client.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className="w-full telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200">
+            Yaratish
           </button>
         </form>
       );
     }
 
     // Mijoz kartasi formasi
-    function ClientForm({ onAddClient }) {
-      const [brandName, setBrandName] = useState("");
-      const [fullName, setFullName] = useState("");
-      const [phone, setPhone] = useState("");
-      const [adType, setAdType] = useState("Social Media");
+    function ClientForm({ onAddClient, onEditClient, editingClient }) {
+      const [brandName, setBrandName] = useState(editingClient?.brandName || "");
+      const [fullName, setFullName] = useState(editingClient?.fullName || "");
+      const [phone, setPhone] = useState(editingClient?.phone || "");
+      const [adType, setAdType] = useState(editingClient?.adType || "Social Media");
+      const [comment, setComment] = useState(editingClient?.comment || "");
+      const [status, setStatus] = useState(editingClient?.status || "Yangi");
 
       const handleSubmit = (e) => {
         e.preventDefault();
         if (brandName && fullName && phone) {
-          onAddClient({ id: Date.now(), brandName, fullName, phone, adType, status: "Yangi" });
+          const clientData = { id: editingClient?.id || Date.now(), brandName, fullName, phone, adType, comment, status };
+          if (editingClient) {
+            onEditClient(clientData);
+          } else {
+            onAddClient(clientData);
+          }
           setBrandName("");
           setFullName("");
           setPhone("");
           setAdType("Social Media");
+          setComment("");
+          setStatus("Yangi");
         }
       };
 
       return (
         <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
-          <h3 className="text-base font-semibold mb-2">Yangi Mijoz</h3>
+          <h3 className="text-base font-semibold mb-2">{editingClient ? "Mijozni Tahrirlash" : "Yangi Mijoz"}</h3>
           <div className="mb-2">
-            <label className="block text-sm">Brend Nomi</label>
+            <label className="block text-sm">Brend Nomi *</label>
             <input
               type="text"
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
           <div className="mb-2">
-            <label className="block text-sm">To‘liq Ism</label>
+            <label className="block text-sm">To‘liq Ism *</label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
           <div className="mb-2">
-            <label className="block text-sm">Telefon</label>
+            <label className="block text-sm">Telefon (+998) *</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
@@ -250,7 +305,7 @@
             <select
               value={adType}
               onChange={(e) => setAdType(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="Social Media">Social Media</option>
               <option value="TV">TV</option>
@@ -258,9 +313,35 @@
               <option value="Print">Print</option>
             </select>
           </div>
-          <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 text-sm">
-            Qo‘shish
-          </button>
+          <div className="mb-2">
+            <label className="block text-sm">Izohlar</label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm">Holat</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Yangi">Yangi</option>
+              <option value="Jarayonda">Jarayonda</option>
+              <option value="Bajarildi">Bajarildi</option>
+              <option value="Chop Etildi">Chop Etildi</option>
+            </select>
+          </div>
+          <div className="flex space-x-2">
+            <button type="submit" className="w-1/2 telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200">
+              {editingClient ? "Saqlash" : "Yaratish"}
+            </button>
+            <button type="button" onClick={() => onEditClient(null)} className="w-1/2 bg-gray-500 text-white p-2 rounded-lg hover:bg-gray-600 text-sm transition duration-200">
+              Bekor Qilish
+            </button>
+          </div>
         </form>
       );
     }
@@ -269,14 +350,12 @@
     function Dashboard({ user }) {
       const [tasks, setTasks] = useState(getStoredTasks());
       const [clients, setClients] = useState(getStoredClients());
+      const [editingClient, setEditingClient] = useState(null);
 
       useEffect(() => {
         initTelegram();
-        // Vazifalarni saqlash
         localStorage.setItem("tasks", JSON.stringify(tasks));
-        // Mijozlarni saqlash
         localStorage.setItem("clients", JSON.stringify(clients));
-        // Chart.js sozlash
         const ctx = document.getElementById("taskChart")?.getContext("2d");
         if (ctx) {
           new Chart(ctx, {
@@ -291,7 +370,7 @@
                     tasks.filter((t) => t.type === "Haftalik").length,
                     tasks.filter((t) => t.type === "15 kunlik").length,
                   ],
-                  backgroundColor: ["#3b82f6", "#10b981", "#ef4444"],
+                  backgroundColor: ["#0088cc", "#00cc99", "#ffcc00"],
                 },
               ],
             },
@@ -322,64 +401,99 @@
         setClients([...clients, newClient]);
       };
 
+      const editClient = (client) => {
+        if (client) {
+          setClients(clients.map((c) => (c.id === client.id ? client : c)));
+        }
+        setEditingClient(null);
+      };
+
       const deleteClient = (id) => {
         setClients(clients.filter((client) => client.id !== id));
       };
 
       return (
-        <div className="min-h-screen bg-gray-100">
-          <Navigation role={user.role} onLogout={() => localStorage.removeItem("user")} />
+        <div className="min-h-screen bg-gray-100 pb-16">
+          <div className="telegram-blue text-white p-4 text-center">
+            <h1 className="text-lg font-bold">{user.role.toUpperCase()} PANELI</h1>
+          </div>
           <div className="max-w-4xl mx-auto p-4">
             <h2 className="text-xl font-bold mb-4">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="text-base font-semibold mb-2">Vazifalar Statistikasi</h3>
-                <canvas id="taskChart"></canvas>
+                <h3 className="text-sm font-semibold mb-2">Kunlik</h3>
+                <p className="text-2xl font-bold">{tasks.filter((t) => t.type === "Kunlik").length}</p>
               </div>
               <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="text-base font-semibold mb-2">Tezkor Harakatlar</h3>
-                {canCreateTask && (
-                  <TaskForm onAddTask={addTask} />
-                )}
-                <ClientForm onAddClient={addClient} />
+                <h3 className="text-sm font-semibold mb-2">Haftalik</h3>
+                <p className="text-2xl font-bold">{tasks.filter((t) => t.type === "Haftalik").length}</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow">
+                <h3 className="text-sm font-semibold mb-2">15 kunlik</h3>
+                <p className="text-2xl font-bold">{tasks.filter((t) => t.type === "15 kunlik").length}</p>
               </div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow mb-4">
-              <h3 className="text-base font-semibold mb-2">Vazifalar</h3>
+              <h3 className="text-base font-semibold mb-2">Vazifalar Statistikasi</h3>
+              <canvas id="taskChart"></canvas>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow mb-4">
+              <h3 className="text-base font-semibold mb-2">So‘nggi Vazifalar</h3>
+              {filteredTasks.length === 0 ? (
+                <p className="text-sm">Vazifalar yo‘q</p>
+              ) : (
+                filteredTasks.slice(0, 4).map((task) => (
+                  <div key={task.id} className="flex justify-between items-center mb-2">
+                    <div>
+                      <p className="text-sm font-medium">{task.title}</p>
+                      <p className="text-xs text-gray-500">{task.dueDate}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded ${task.status === "Yangi" ? "status-yangi" : task.status === "Jarayonda" ? "status-jarayonda" : "status-bajarildi"}`}>
+                      {task.status}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+            {canCreateTask && (
+              <TaskForm onAddTask={addTask} users={users} />
+            )}
+            <div className="bg-white p-4 rounded-lg shadow mb-4">
+              <h3 className="text-base font-semibold mb-2">{user.role === "Brend Face" ? "Mening Brend Vazifalarim" : user.role === "Mobilograf" || user.role === "Ssenarist" ? "Mening Vazifalarim" : "Vazifalar"}</h3>
               {filteredTasks.length === 0 ? (
                 <p className="text-sm">Vazifalar yo‘q</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-200">
-                      <th className="p-2 text-left">Nomi</th>
-                      <th className="p-2 text-left">Turi</th>
-                      <th className="p-2 text-left">Holati</th>
+                    <tr className="bg-gray-100">
+                      <th className="p-2 text-left">Sarlavha</th>
+                      <th className="p-2 text-left">Tayinlangan</th>
                       <th className="p-2 text-left">Muddat</th>
-                      <th className="p-2 text-left">Harakat</th>
+                      <th className="p-2 text-left">Holat</th>
+                      <th className="p-2 text-left"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTasks.map((task) => (
                       <tr key={task.id} className="border-b">
                         <td className="p-2">{task.title}</td>
-                        <td className="p-2">{task.type}</td>
+                        <td className="p-2">{task.assignedTo}</td>
+                        <td className="p-2">{task.dueDate}</td>
                         <td className="p-2">
                           <select
                             value={task.status}
                             onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                            className="p-1 border rounded text-sm"
+                            className="p-1 border rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="Yangi">Yangi</option>
                             <option value="Jarayonda">Jarayonda</option>
                             <option value="Bajarildi">Bajarildi</option>
                           </select>
                         </td>
-                        <td className="p-2">{task.dueDate}</td>
                         <td className="p-2">
                           <button
                             onClick={() => deleteTask(task.id)}
-                            className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 text-xs"
+                            className="bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600 text-xs transition duration-200"
                           >
                             O‘chirish
                           </button>
@@ -390,19 +504,20 @@
                 </table>
               )}
             </div>
+            <ClientForm onAddClient={addClient} onEditClient={editClient} editingClient={editingClient} />
             <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-base font-semibold mb-2">Mijozlar</h3>
+              <h3 className="text-base font-semibold mb-2">{user.role === "Brend Face" ? "Mijoz bilan Ishlash" : "Mijoz Kartalari"}</h3>
               {clients.length === 0 ? (
                 <p className="text-sm">Mijozlar yo‘q</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-200">
+                    <tr className="bg-gray-100">
                       <th className="p-2 text-left">Brend</th>
                       <th className="p-2 text-left">Ism</th>
                       <th className="p-2 text-left">Telefon</th>
-                      <th className="p-2 text-left">Reklama</th>
-                      <th className="p-2 text-left">Harakat</th>
+                      <th className="p-2 text-left">Holat</th>
+                      <th className="p-2 text-left"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -411,11 +526,17 @@
                         <td className="p-2">{client.brandName}</td>
                         <td className="p-2">{client.fullName}</td>
                         <td className="p-2">{client.phone}</td>
-                        <td className="p-2">{client.adType}</td>
-                        <td className="p-2">
+                        <td className="p-2">{client.status}</td>
+                        <td className="p-2 flex space-x-2">
+                          <button
+                            onClick={() => setEditingClient(client)}
+                            className="telegram-blue text-white px-2 py-1 rounded-lg hover:bg-blue-600 text-xs transition duration-200"
+                          >
+                            Tahrirlash
+                          </button>
                           <button
                             onClick={() => deleteClient(client.id)}
-                            className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 text-xs"
+                            className="bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600 text-xs transition duration-200"
                           >
                             O‘chirish
                           </button>
@@ -427,6 +548,7 @@
               )}
             </div>
           </div>
+          <Navigation role={user.role} />
         </div>
       );
     }
@@ -456,13 +578,20 @@
           {!user ? (
             <Login onLogin={handleLogin} />
           ) : (
-            <Dashboard user={user} />
+            <div>
+              <Dashboard user={user} />
+              <button
+                onClick={handleLogout}
+                className="fixed top-4 right-4 telegram-blue text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200"
+              >
+                Chiqish
+              </button>
+            </div>
           )}
         </div>
       );
     }
 
-    // App ni render qilish
     ReactDOM.render(<App />, document.getElementById("root"));
   </script>
 </body>
