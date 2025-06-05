@@ -10,6 +10,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -38,8 +39,8 @@
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect } = React;
+    const stripe = Stripe('your_publishable_key');
 
-    // Namuna foydalanuvchilar (Ssenarist qo‘shildi)
     const users = [
       { id: 1, username: "direktor", password: "dir123", role: "Direktor" },
       { id: 2, username: "hr", password: "hr123", role: "HR" },
@@ -49,11 +50,9 @@
       { id: 6, username: "ssenarist", password: "ssen123", role: "Ssenarist" },
     ];
 
-    // localStorage’dan ma’lumot olish
     const getStoredTasks = () => JSON.parse(localStorage.getItem("tasks")) || [];
     const getStoredClients = () => JSON.parse(localStorage.getItem("clients")) || [];
 
-    // Telegram sozlash
     const initTelegram = () => {
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.ready();
@@ -61,7 +60,59 @@
       }
     };
 
-    // Kirish komponenti
+    function PaymentForm({ amount, onSuccess }) {
+      const [error, setError] = useState(null);
+      const [processing, setProcessing] = useState(false);
+
+      const handleSubmit = async (event) => {
+        event.preventDefault();
+        setProcessing(true);
+
+        try {
+          const { error: stripeError } = await stripe.confirmCardPayment({
+            payment_method: {
+              card: elements.getElement('card'),
+              billing_details: {
+                name: 'Mijoz ismi',
+              },
+            },
+            amount: amount * 100,
+            currency: 'uzs',
+          });
+
+          if (stripeError) {
+            setError(stripeError.message);
+          } else {
+            onSuccess();
+          }
+        } catch (err) {
+          setError('To\'lov jarayonida xatolik yuz berdi');
+        }
+
+        setProcessing(false);
+      };
+
+      return (
+        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
+          <h3 className="text-base font-semibold mb-2">To'lov</h3>
+          <div className="mb-4">
+            <label className="block text-sm mb-2">Karta ma'lumotlari</label>
+            <div className="p-2 border rounded">
+              <div id="card-element"></div>
+            </div>
+          </div>
+          {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+          <button
+            type="submit"
+            disabled={processing}
+            className="w-full telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200"
+          >
+            {processing ? "To'lov amalga oshirilmoqda..." : "To'lash"}
+          </button>
+        </form>
+      );
+    }
+
     function Login({ onLogin }) {
       const [username, setUsername] = useState("");
       const [password, setPassword] = useState("");
@@ -74,7 +125,7 @@
           localStorage.setItem("user", JSON.stringify(user));
           onLogin(user);
         } else {
-          setError("Noto‘g‘ri login yoki parol");
+          setError("Noto'g'ri login yoki parol");
         }
       };
 
@@ -113,7 +164,6 @@
       );
     }
 
-    // Navigatsiya komponenti (pastki qism)
     function Navigation({ role }) {
       const navItems = {
         Direktor: ["Dashboard", "Vazifalar", "Mijozlar", "Foydalanuvchilar", "Hisobotlar", "Sozlamalar"],
@@ -136,7 +186,6 @@
       );
     }
 
-    // Vazifa yaratish formasi
     function TaskForm({ onAddTask, users }) {
       const [title, setTitle] = useState("");
       const [description, setDescription] = useState("");
@@ -240,7 +289,6 @@
       );
     }
 
-    // Mijoz kartasi formasi
     function ClientForm({ onAddClient, onEditClient, editingClient }) {
       const [brandName, setBrandName] = useState(editingClient?.brandName || "");
       const [fullName, setFullName] = useState(editingClient?.fullName || "");
@@ -248,6 +296,12 @@
       const [adType, setAdType] = useState(editingClient?.adType || "Social Media");
       const [comment, setComment] = useState(editingClient?.comment || "");
       const [status, setStatus] = useState(editingClient?.status || "Yangi");
+      const [showPayment, setShowPayment] = useState(false);
+      const [amount, setAmount] = useState('');
+
+      const handlePaymentSuccess = () => {
+        setShowPayment(false);
+      };
 
       const handleSubmit = (e) => {
         e.preventDefault();
@@ -268,85 +322,109 @@
       };
 
       return (
-        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
-          <h3 className="text-base font-semibold mb-2">{editingClient ? "Mijozni Tahrirlash" : "Yangi Mijoz"}</h3>
-          <div className="mb-2">
-            <label className="block text-sm">Brend Nomi *</label>
-            <input
-              type="text"
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div className="mb-2">
-            <label className="block text-sm">To‘liq Ism *</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div className="mb-2">
-            <label className="block text-sm">Telefon (+998) *</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div className="mb-2">
-            <label className="block text-sm">Reklama Turi</label>
-            <select
-              value={adType}
-              onChange={(e) => setAdType(e.target.value)}
-              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div>
+          <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
+            <h3 className="text-base font-semibold mb-2">{editingClient ? "Mijozni Tahrirlash" : "Yangi Mijoz"}</h3>
+            <div className="mb-2">
+              <label className="block text-sm">Brend Nomi *</label>
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm">To'liq Ism *</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm">Telefon (+998) *</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm">Reklama Turi</label>
+              <select
+                value={adType}
+                onChange={(e) => setAdType(e.target.value)}
+                className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Social Media">Social Media</option>
+                <option value="TV">TV</option>
+                <option value="Radio">Radio</option>
+                <option value="Print">Print</option>
+              </select>
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm">Izohlar</label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="mb-2">
+              <label className="block text-sm">Holat</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Yangi">Yangi</option>
+                <option value="Jarayonda">Jarayonda</option>
+                <option value="Bajarildi">Bajarildi</option>
+                <option value="Chop Etildi">Chop Etildi</option>
+              </select>
+            </div>
+            <div className="flex space-x-2">
+              <button type="submit" className="w-1/2 telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200">
+                {editingClient ? "Saqlash" : "Yaratish"}
+              </button>
+              <button type="button" onClick={() => onEditClient(null)} className="w-1/2 bg-gray-500 text-white p-2 rounded-lg hover:bg-gray-600 text-sm transition duration-200">
+                Bekor Qilish
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowPayment(true)}
+              className="w-full bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 text-sm transition duration-200"
             >
-              <option value="Social Media">Social Media</option>
-              <option value="TV">TV</option>
-              <option value="Radio">Radio</option>
-              <option value="Print">Print</option>
-            </select>
-          </div>
-          <div className="mb-2">
-            <label className="block text-sm">Izohlar</label>
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="mb-2">
-            <label className="block text-sm">Holat</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full p-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Yangi">Yangi</option>
-              <option value="Jarayonda">Jarayonda</option>
-              <option value="Bajarildi">Bajarildi</option>
-              <option value="Chop Etildi">Chop Etildi</option>
-            </select>
-          </div>
-          <div className="flex space-x-2">
-            <button type="submit" className="w-1/2 telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200">
-              {editingClient ? "Saqlash" : "Yaratish"}
-            </button>
-            <button type="button" onClick={() => onEditClient(null)} className="w-1/2 bg-gray-500 text-white p-2 rounded-lg hover:bg-gray-600 text-sm transition duration-200">
-              Bekor Qilish
+              To'lov qilish
             </button>
           </div>
-        </form>
+
+          {showPayment && (
+            <div className="mt-4">
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="To'lov miqdori (UZS)"
+                className="w-full p-2 border rounded mb-2"
+              />
+              <PaymentForm amount={Number(amount)} onSuccess={handlePaymentSuccess} />
+            </div>
+          )}
+        </div>
       );
     }
 
-    // Dashboard komponenti
     function Dashboard({ user }) {
       const [tasks, setTasks] = useState(getStoredTasks());
       const [clients, setClients] = useState(getStoredClients());
@@ -438,9 +516,9 @@
               <canvas id="taskChart"></canvas>
             </div>
             <div className="bg-white p-4 rounded-lg shadow mb-4">
-              <h3 className="text-base font-semibold mb-2">So‘nggi Vazifalar</h3>
+              <h3 className="text-base font-semibold mb-2">So'nggi Vazifalar</h3>
               {filteredTasks.length === 0 ? (
-                <p className="text-sm">Vazifalar yo‘q</p>
+                <p className="text-sm">Vazifalar yo'q</p>
               ) : (
                 filteredTasks.slice(0, 4).map((task) => (
                   <div key={task.id} className="flex justify-between items-center mb-2">
@@ -461,7 +539,7 @@
             <div className="bg-white p-4 rounded-lg shadow mb-4">
               <h3 className="text-base font-semibold mb-2">{user.role === "Brend Face" ? "Mening Brend Vazifalarim" : user.role === "Mobilograf" || user.role === "Ssenarist" ? "Mening Vazifalarim" : "Vazifalar"}</h3>
               {filteredTasks.length === 0 ? (
-                <p className="text-sm">Vazifalar yo‘q</p>
+                <p className="text-sm">Vazifalar yo'q</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -495,7 +573,7 @@
                             onClick={() => deleteTask(task.id)}
                             className="bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600 text-xs transition duration-200"
                           >
-                            O‘chirish
+                            O'chirish
                           </button>
                         </td>
                       </tr>
@@ -508,7 +586,7 @@
             <div className="bg-white p-4 rounded-lg shadow">
               <h3 className="text-base font-semibold mb-2">{user.role === "Brend Face" ? "Mijoz bilan Ishlash" : "Mijoz Kartalari"}</h3>
               {clients.length === 0 ? (
-                <p className="text-sm">Mijozlar yo‘q</p>
+                <p className="text-sm">Mijozlar yo'q</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead>
@@ -538,7 +616,7 @@
                             onClick={() => deleteClient(client.id)}
                             className="bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600 text-xs transition duration-200"
                           >
-                            O‘chirish
+                            O'chirish
                           </button>
                         </td>
                       </tr>
@@ -553,7 +631,6 @@
       );
     }
 
-    // Asosiy App komponenti
     function App() {
       const [user, setUser] = useState(null);
 
