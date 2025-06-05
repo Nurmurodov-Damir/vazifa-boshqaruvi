@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vazifa Boshqaruvi va Mijoz Kartasi</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    .telegram-blue {
+      background-color: #0088cc;
+    }
+    .telegram-blue:hover {
+      background-color: #0077b3;
+    }
+    .status-yangi {
+      background-color: #ffcc00;
+      color: #fff;
+    }
+    .status-jarayonda {
+      background-color: #00cc99;
+      color: #fff;
+    }
+    .status-bajarildi {
+      background-color: #00cc00;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    const stripe = Stripe('your_publishable_key');
+    const elements = stripe.elements();
+    const card = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '16px',
+          color: '#32325d',
+        },
+      },
+    });
+
+    const users = [
+      { id: 1, username: "direktor", password: "dir123", role: "Direktor" },
+      { id: 2, username: "hr", password: "hr123", role: "HR" },
+      { id: 3, username: "pm", password: "pm123", role: "PM" },
+      { id: 4, username: "mobilograf", password: "mob123", role: "Mobilograf" },
+      { id: 5, username: "brendface", password: "brd123", role: "Brend Face" },
+      { id: 6, username: "ssenarist", password: "ssen123", role: "Ssenarist" },
+    ];
+
+    const getStoredTasks = () => JSON.parse(localStorage.getItem("tasks")) || [];
+    const getStoredClients = () => JSON.parse(localStorage.getItem("clients")) || [];
+
+    const initTelegram = () => {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      }
+    };
+
+    function PaymentForm({ amount, onSuccess }) {
+      const [error, setError] = useState(null);
+      const [processing, setProcessing] = useState(false);
+
+      useEffect(() => {
+        card.mount('#card-element');
+        return () => card.unmount();
+      }, []);
+
+      const handleSubmit = async (event) => {
+        event.preventDefault();
+        setProcessing(true);
+
+        try {
+          const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment({
+            payment_method: {
+              card: card,
+              billing_details: {
+                name: 'Mijoz ismi',
+              },
+            },
+            amount: Math.round(amount * 100),
+            currency: 'uzs',
+          });
+
+          if (stripeError) {
+            setError(stripeError.message);
+          } else if (paymentIntent.status === 'succeeded') {
+            onSuccess();
+          }
+        } catch (err) {
+          setError('To\'lov jarayonida xatolik yuz berdi');
+        }
+
+        setProcessing(false);
+      };
+
+      return (
+        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow mb-4">
+          <h3 className="text-base font-semibold mb-2">To'lov</h3>
+          <div className="mb-4">
+            <label className="block text-sm mb-2">Karta ma'lumotlari</label>
+            <div className="p-2 border rounded">
+              <div id="card-element"></div>
+            </div>
+          </div>
+          {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+          <button
+            type="submit"
+            disabled={processing}
+            className="w-full telegram-blue text-white p-2 rounded-lg hover:bg-blue-600 text-sm transition duration-200"
+          >
+            {processing ? "To'lov amalga oshirilmoqda..." : `${amount} UZS to'lash`}
+          </button>
+        </form>
+      );
+    }
+
+    // [Qolgan kod o'zgarishsiz qoldirildi...]
+
+  </script>
+</body>
+</html>
